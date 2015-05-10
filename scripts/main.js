@@ -19,6 +19,7 @@ var windowWidth;
 var windowHeight;
 var scale = 1.0;
 var defaultWindowSize = 1024.0;
+var lastUpdate;
 
 var sharpenKernel = [
     -1, -1, -1,
@@ -177,6 +178,7 @@ function start() {
         initInputHandling();
 
         shaders.currentShader = shaders.depthBlurShader;
+        lastUpdate = Date.now();
         tick();
     }
 }
@@ -320,18 +322,21 @@ function drawScene(shader, camera) {
     scene.cube.draw(shader.handles);
 }
 
-function animate() {
-    scene.sphere.rotation[1] += 0.05;
-    scene.sphere.rotation[2] += 0.1;
+function animate(delta) {
+    scene.sphere.rotation[1] += 0.05 * delta;
+    scene.sphere.rotation[2] += 0.1 * delta;
 
-    scene.cube.rotation[1] += 0.07;
-    scene.cube.rotation[2] += 0.1;
+    scene.cube.rotation[1] += 0.07 * delta;
+    scene.cube.rotation[2] += 0.1 * delta;
 }
 
 function tick() {
     requestAnimFrame(tick);
+    var now = Date.now();
+    var delta = now - lastUpdate;
+    lastUpdate = now;
     handleKeys();
-    animate();
+    animate(delta / ((1/60) * 1000));
     renderToTextures();
     renderDeferred();
     renderToScreen();
