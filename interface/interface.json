@@ -9,6 +9,7 @@
     {"position": [0.9, 0.8, 1, 0.9], "type": "radio", "namespace": "kernel", "name": "sharpen-kernel", "checked": false},
     {"position": [0.8, 0.8, 0.9, 0.9], "type": "radio", "namespace": "kernel", "name": "blur-kernel", "checked": true},
     {"position": [0.7, 0.8, 0.8, 0.9], "type": "radio", "namespace": "kernel", "name": "edge-kernel", "checked": false},
-    {"position": [0.7, 0.4, 1, 0.5], "type": "slider", "name": "test-slider", "slider-position": 0}
+    {"position": [0.7, 0.4, 1, 0.5], "type": "slider", "name": "test-slider", "slider-position": 0.5},
+    {"position": [0.7, 0.3, 1, 0.4], "type": "slider", "name": "resolution-slider", "slider-position": 0.5}
   ]
 }

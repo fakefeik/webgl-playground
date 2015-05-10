@@ -17,6 +17,8 @@ var lastMouseX = null;
 var lastMouseY = null;
 var windowWidth;
 var windowHeight;
+var scale = 1.0;
+var defaultWindowSize = 1024.0;
 
 var sharpenKernel = [
     -1, -1, -1,
@@ -44,9 +46,9 @@ function start() {
         extensions.depthExtension = gl.getExtension("WEBGL_depth_texture");
         extensions.bufferExtension = gl.getExtension("WEBGL_draw_buffers");
 
-        framebuffers.framebuffer = new Framebuffer(gl, 2048, 2048, ["colorTexture", "albedoTexture", "normalTexture", "shadowTexture"], false, extensions.bufferExtension);
-        framebuffers.shadowFramebuffer = new Framebuffer(gl, 2048, 2048, []);
-        framebuffers.deferredFramebuffer = new Framebuffer(gl, 2048, 2048, ["renderedTexture"]);
+        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["colorTexture", "albedoTexture", "normalTexture", "shadowTexture"], false, extensions.bufferExtension);
+        framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
+        framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -56,8 +58,8 @@ function start() {
             windowHeight = canvas.height;
             windowWidth = canvas.width;
 
-            framebuffers.framebuffer.resize(windowWidth, windowHeight);
-            framebuffers.deferredFramebuffer.resize(windowWidth, windowHeight);
+            framebuffers.framebuffer.resize(windowWidth * scale, windowHeight * scale);
+            framebuffers.deferredFramebuffer.resize(windowWidth * scale, windowHeight * scale);
         }
 
         resize();
@@ -137,7 +139,8 @@ function start() {
             "uDepthRender",
             "uSliderValue"
         ]);
-        
+        shaders.depthBlurShader.bind();
+
 
         shaders.screenspaceShader = new Shader(gl, "screenspace.vs", "screenspace.fs");
         shaders.screenspaceShader.saveAttribLocations(["aVertexPosition", "aVertexTexCoord"]);
@@ -261,7 +264,16 @@ function initInterfaceElements() {
             shaders.depthBlurShader.bind();
             gl.uniform1f(shaders.depthBlurShader.handles["uSliderValue"], d);
         }
-    }
+    };
+
+    interface.getElementByName("resolution-slider").callback = function(d) {
+        if (d) {
+            scale = d * 2;
+            framebuffers.framebuffer.resize(windowWidth * scale, windowHeight * scale);
+            framebuffers.deferredFramebuffer.resize(windowWidth * scale, windowHeight * scale);
+            framebuffers.shadowFramebuffer.resize(defaultWindowSize * scale, defaultWindowSize * scale);
+        }
+    };
 }
 
 function handleKeys() {
@@ -337,7 +349,7 @@ function renderToTextures() {
 
 function renderDeferred() {
     framebuffers.deferredFramebuffer.renderWithFunc(function() {
-        gl.viewport(0, 0, windowWidth, windowHeight);
+        gl.viewport(0, 0, windowWidth * scale, windowHeight * scale);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         shaders.deferredShader.bind();
 
@@ -374,13 +386,15 @@ function renderToScreen() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     shaders.currentShader.bind();
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getDepthTexture());
+    gl.uniform1i(shaders.currentShader.handles["uDepthTexture"], 1);
+    
     quads.square.setTexture(framebuffers.deferredFramebuffer.getColorTexture("renderedTexture"));
     quads.square.draw(shaders.currentShader.handles);
 
     shaders.screenspaceShader.bind();
-
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getDepthTexture());
     gl.uniform1i(shaders.screenspaceShader.handles["uDepthTexture"], 1);
 
     interface.draw(shaders.screenspaceShader.handles);
