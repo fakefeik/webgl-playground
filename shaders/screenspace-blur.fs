@@ -3,7 +3,6 @@ precision mediump float;
 uniform sampler2D uTexture;
 uniform sampler2D uDepthTexture;
 uniform float uKernel[9];
-uniform bool uDepthRender;
 uniform float uSliderValue;
 
 varying vec2 vTexCoord;
@@ -25,14 +24,8 @@ void main(void) {
     for (int i = 0; i < 9; i++)
         sample[i] = texture2D(uTexture, vTexCoord.xy + offsets[i]).rgb;
     vec3 col;
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++)
         col += sample[i] * uKernel[i];
-    }
-
-    if (uDepthRender) {
-        float c = texture2D(uDepthTexture, vTexCoord).r;
-        col = vec3(c, c, c);
-    }
 
     gl_FragColor = vec4(col * texture2D(uDepthTexture, vTexCoord).r, 1.0);
 }

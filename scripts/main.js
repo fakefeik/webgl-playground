@@ -47,7 +47,7 @@ function start() {
         extensions.depthExtension = gl.getExtension("WEBGL_depth_texture");
         extensions.bufferExtension = gl.getExtension("WEBGL_draw_buffers");
 
-        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["colorTexture", "albedoTexture", "normalTexture", "shadowTexture"], false, extensions.bufferExtension);
+        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
         framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
         framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
 
@@ -68,6 +68,15 @@ function start() {
 
         cameras.camera = new Camera([0, 0, 1.5], [0, 0, -5], [0, 1, 0]);
         cameras.shadowCamera = new Camera([2, 20.900000000000027, -5.966682030726198], [1.536713802441966, 19.970923089981106, -6.079460187721971], [0, 1, 0]);
+
+        var dir = [
+            cameras.shadowCamera.target[0] - cameras.shadowCamera.position[0],
+            cameras.shadowCamera.target[1] - cameras.shadowCamera.position[1],
+            cameras.shadowCamera.target[2] - cameras.shadowCamera.position[2]
+        ];
+        var adjustedDir = vec3.create();
+        vec3.normalize(dir, adjustedDir);
+        vec3.scale(adjustedDir, -1);
 
         var biasMatrix = mat4.createFrom(
             0.5, 0.0, 0.0, 0.0,
@@ -95,7 +104,8 @@ function start() {
         shaders.defaultShader.saveUniformLocations([
             "uTexture", 
             "uNormalTexture", 
-            "uShadowmap", 
+            "uShadowmap",
+            "uLightInvDir",
             "uMMatrix", 
             "uPMatrix", 
             "uVMatrix", 
@@ -104,6 +114,7 @@ function start() {
         shaders.defaultShader.bind();
         gl.uniformMatrix4fv(shaders.defaultShader.handles["uPMatrix"], false, projectionMatrix);
         gl.uniformMatrix4fv(shaders.defaultShader.handles["uBMatrix"], false, depthBiasMVP);
+        gl.uniform3fv(shaders.defaultShader.handles["uLightInvDir"], adjustedDir);
 
 
         shaders.deferredShader = new Shader(gl, "screenspace.vs", "deferred.fs");
@@ -117,6 +128,10 @@ function start() {
             "uDirectionalColor",
             "uAmbientColor"
         ]);
+        shaders.deferredShader.bind();
+        gl.uniform3f(shaders.deferredShader.handles["uAmbientColor"], 0.1, 0.1, 0.1);
+        gl.uniform3fv(shaders.deferredShader.handles["uLightingDirection"], adjustedDir);
+        gl.uniform3f(shaders.deferredShader.handles["uDirectionalColor"], 0.8, 0.8, 0.8);
 
 
         shaders.blurShader = new Shader(gl, "screenspace.vs", "screenspace-blur.fs");
@@ -125,7 +140,6 @@ function start() {
             "uTexture",
             "uDepthTexture",
             "uKernel",
-            "uDepthRender",
             "uSliderValue"
         ]);
         shaders.blurShader.bind();
@@ -137,7 +151,6 @@ function start() {
         shaders.depthBlurShader.saveUniformLocations([
             "uTexture",
             "uDepthTexture",
-            "uDepthRender",
             "uSliderValue"
         ]);
         shaders.depthBlurShader.bind();
@@ -145,11 +158,7 @@ function start() {
 
         shaders.screenspaceShader = new Shader(gl, "screenspace.vs", "screenspace.fs");
         shaders.screenspaceShader.saveAttribLocations(["aVertexPosition", "aVertexTexCoord"]);
-        shaders.screenspaceShader.saveUniformLocations([
-            "uTexture",
-            "uDepthTexture",
-            "uDepthRender"
-        ]);
+        shaders.screenspaceShader.saveUniformLocations(["uTexture", "uDepthTexture"]);
         
 
         scene.mesh = Load("models/sponza.jm");
@@ -168,7 +177,9 @@ function start() {
         quads.depthSquare = getQuad(gl, -1, -1, -0.5, -0.5, -0.1);
         quads.normalSquare = getQuad(gl, -0.5, -1, 0, -0.5, -0.1);
         quads.albedoSquare = getQuad(gl, 0, -1, 0.5, -0.5, -0.1);
+        quads.positionSquare = getQuad(gl, -1, -0.5, -0.5, 0, -0.1);
         quads.shadowSquare = getQuad(gl, 0.5, -1, 1, -0.5, -0.1);
+        quads.shadowmapSquare = getQuad(gl, 0.5, -0.5, 1, 0, -0.1);
 
         gl.clearColor(0, 0, 0, 1);
         gl.clearDepth(1);
@@ -345,10 +356,12 @@ function tick() {
 
 function renderToTextures() {
     framebuffers.shadowFramebuffer.renderWithFunc(function() {
-        return drawScene(shaders.shadowpassShader, cameras.shadowCamera);
+        gl.cullFace(gl.FRONT);
+        drawScene(shaders.shadowpassShader, cameras.shadowCamera);
     });
     framebuffers.framebuffer.renderWithFunc(function() {
-        return drawScene(shaders.defaultShader, cameras.camera);
+        gl.cullFace(gl.BACK);
+        drawScene(shaders.defaultShader, cameras.camera);
     });
 }
 
@@ -374,13 +387,7 @@ function renderDeferred() {
         gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getColorTexture("shadowTexture"));
         gl.uniform1i(shaders.deferredShader.handles["uShadowMap"], 7);
 
-        gl.uniform3f(shaders.deferredShader.handles["uAmbientColor"], 0.1, 0.1, 0.1);
-        var dir = [-0.25, -0.25, -1];
-        var adjustedDir = vec3.create();
-        vec3.normalize(dir, adjustedDir);
-        vec3.scale(adjustedDir, -1);
-        gl.uniform3fv(shaders.deferredShader.handles["uLightingDirection"], adjustedDir);
-        gl.uniform3f(shaders.deferredShader.handles["uDirectionalColor"], 0.8, 0.8, 0.8);
+
 
         quads.square.draw(shaders.deferredShader.handles);        
     });
@@ -400,22 +407,26 @@ function renderToScreen() {
     quads.square.draw(shaders.currentShader.handles);
 
     shaders.screenspaceShader.bind();
-    gl.uniform1i(shaders.screenspaceShader.handles["uDepthTexture"], 1);
 
     interface.draw(shaders.screenspaceShader.handles);
+    
     if (drawDepth) {
-        gl.uniform1i(shaders.screenspaceShader.handles["uDepthRender"], 1);
-        quads.depthSquare.setTexture(framebuffers.framebuffer.getColorTexture("colorTexture"));
+        quads.depthSquare.setTexture(framebuffers.framebuffer.getDepthTexture());
         quads.depthSquare.draw(shaders.screenspaceShader.handles);
-        gl.uniform1i(shaders.screenspaceShader.handles["uDepthRender"], 0);
+
+        quads.normalSquare.setTexture(framebuffers.framebuffer.getColorTexture("normalTexture"));
+        quads.normalSquare.draw(shaders.screenspaceShader.handles);
+
+        quads.albedoSquare.setTexture(framebuffers.framebuffer.getColorTexture("albedoTexture"));
+        quads.albedoSquare.draw(shaders.screenspaceShader.handles);
+
+        quads.positionSquare.setTexture(framebuffers.framebuffer.getColorTexture("positionTexture"));
+        quads.positionSquare.draw(shaders.screenspaceShader.handles);
+
+        quads.shadowSquare.setTexture(framebuffers.framebuffer.getColorTexture("shadowTexture"));
+        quads.shadowSquare.draw(shaders.screenspaceShader.handles);
+
+        quads.shadowmapSquare.setTexture(framebuffers.shadowFramebuffer.getDepthTexture());
+        quads.shadowmapSquare.draw(shaders.screenspaceShader.handles);
     }
-
-    quads.normalSquare.setTexture(framebuffers.framebuffer.getColorTexture("normalTexture"));
-    quads.normalSquare.draw(shaders.screenspaceShader.handles);
-
-    quads.albedoSquare.setTexture(framebuffers.framebuffer.getColorTexture("albedoTexture"));
-    quads.albedoSquare.draw(shaders.screenspaceShader.handles);
-
-    quads.shadowSquare.setTexture(framebuffers.framebuffer.getColorTexture("shadowTexture"));
-    quads.shadowSquare.draw(shaders.screenspaceShader.handles);
 }
