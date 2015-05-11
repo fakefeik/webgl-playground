@@ -228,6 +228,14 @@ function initInputHandling() {
         lastMouseX = newX;
         lastMouseY = newY;
     });
+
+    document.onmousewheel = function(event) {
+        if (event.wheelDelta == 120)
+            defaultWindowSize *= 2;
+        else if (event.wheelDelta == -120)
+            defaultWindowSize /= 2;
+        framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
+    };
 }
 
 function initInterfaceElements() {
@@ -284,7 +292,6 @@ function initInterfaceElements() {
             scale = d * 2;
             framebuffers.framebuffer.resize(windowWidth * scale, windowHeight * scale);
             framebuffers.deferredFramebuffer.resize(windowWidth * scale, windowHeight * scale);
-            framebuffers.shadowFramebuffer.resize(defaultWindowSize * scale, defaultWindowSize * scale);
         }
     };
 }
