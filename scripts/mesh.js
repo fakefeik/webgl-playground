@@ -42,6 +42,30 @@ function Mesh(gl, vertices, indices, tex, normals) {
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
     }
 
+    var lineIndexBuffer = { };
+    lineIndexBuffer.count = 0;
+    if (indices) {
+        var lineIndices = [];
+        var i = 0
+        while (i < indices.length) {
+            var a = indices[i];
+            var b = indices[i + 1];
+            var c = indices[i + 2];
+            i += 3
+            lineIndices.push(a);
+            lineIndices.push(b);
+            lineIndices.push(b);
+            lineIndices.push(c);
+            lineIndices.push(c);
+            lineIndices.push(a);
+        }
+        
+        lineIndexBuffer.count = lineIndices.length;
+        lineIndexBuffer.id = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBuffer.id);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(lineIndices), gl.STATIC_DRAW);
+    }
+
     var texture;
     this.initTexture = function(src) {
         texture = gl.createTexture();
@@ -127,6 +151,56 @@ function Mesh(gl, vertices, indices, tex, normals) {
         gl.disableVertexAttribArray(handles["aVertexNormal"]);
         gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
     }
+
+    this.drawWireframe = function(handles) {
+        mat4.identity(modelMatrix);
+        mat4.translate(modelMatrix, this.position);
+        mat4.rotateX(modelMatrix, this.rotation[0]);
+        mat4.rotateY(modelMatrix, this.rotation[1]);
+        mat4.rotateZ(modelMatrix, this.rotation[2]);
+        mat4.scale(modelMatrix, this.scale);
+
+        gl.uniformMatrix4fv(handles["uMMatrix"], false, modelMatrix);
+        
+        if (handles["aVertexPosition"] != -1) {
+            if (vertexBuffer.count != 0) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer.id);
+                gl.enableVertexAttribArray(handles["aVertexPosition"]);
+                gl.vertexAttribPointer(handles["aVertexPosition"], 3, gl.FLOAT, false, 0, 0);
+            } //else gl.disableVertexAttribArray(handles["aVertexPosition"]);
+        }
+
+        if (handles["aVertexNormal"] != -1) {
+            if (normalBuffer.count != 0) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer.id);
+                gl.enableVertexAttribArray(handles["aVertexNormal"]);
+                gl.vertexAttribPointer(handles["aVertexNormal"], 3, gl.FLOAT, false, 0, 0);
+            } //else gl.disableVertexAttribArray(handles["aVertexNormal"]);
+        }
+
+        if (handles["aVertexTexCoord"] != -1) {
+            if (texBuffer.count != 0) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer.id);
+                gl.enableVertexAttribArray(handles["aVertexTexCoord"]);
+                gl.vertexAttribPointer(handles["aVertexTexCoord"], 2, gl.FLOAT, false, 0, 0);
+            } //else gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
+        }
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.uniform1i(handles["uTexture"], 0);
+
+        if (indexBuffer.count == 0)
+            gl.drawArrays(gl.LINES, 0, vertexBuffer.count);
+        else {
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBuffer.id);
+            gl.drawElements(gl.LINES, lineIndexBuffer.count, gl.UNSIGNED_SHORT, 0);
+        }
+        
+        gl.disableVertexAttribArray(handles["aVertexPosition"]);
+        gl.disableVertexAttribArray(handles["aVertexNormal"]);
+        gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
+    };
 }
 
 function getPlane(width, height, width_segments, height_segments, f) {

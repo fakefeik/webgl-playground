@@ -11,7 +11,7 @@ var interface;
 var pressedKeys = { };
 var light = true;
 var drawDepth = false;
-var drawNormal = false;
+var drawWireframe = false;
 var mouseDown = false;
 var lastMouseX = null;
 var lastMouseY = null;
@@ -251,7 +251,7 @@ function initInterfaceElements() {
     };
 
     interface.getElementByName("normal").callback = function() {
-        drawNormal = !drawNormal;
+        drawWireframe = !drawWireframe;
     };
 
     interface.getElementByName("blur").callback = function() {
@@ -337,11 +337,10 @@ function drawScene(shader, camera) {
     gl.activeTexture(gl.TEXTURE3);
     gl.bindTexture(gl.TEXTURE_2D, framebuffers.shadowFramebuffer.getDepthTexture());
     gl.uniform1i(shader.handles["uShadowmap"], 3);
+    for (var key in scene) {
+        drawWireframe ? scene[key].drawWireframe(shader.handles) : scene[key].draw(shader.handles);
+    }
 
-    scene.sphere.draw(shader.handles);
-    scene.mesh.draw(shader.handles);
-    scene.cube.draw(shader.handles);
-    scene.plane.draw(shader.handles);
 }
 
 function animate(delta) {
