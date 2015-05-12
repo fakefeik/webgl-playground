@@ -126,12 +126,14 @@ function start() {
             "uShadowMap",
             "uLightingDirection",
             "uDirectionalColor",
-            "uAmbientColor"
+            "uAmbientColor",
+            "uUseShadow"
         ]);
         shaders.deferredShader.bind();
         gl.uniform3f(shaders.deferredShader.handles["uAmbientColor"], 0.1, 0.1, 0.1);
         gl.uniform3fv(shaders.deferredShader.handles["uLightingDirection"], adjustedDir);
         gl.uniform3f(shaders.deferredShader.handles["uDirectionalColor"], 0.8, 0.8, 0.8);
+        gl.uniform1i(shaders.deferredShader.handles["uUseShadow"], light);
 
 
         shaders.blurShader = new Shader(gl, "screenspace.vs", "screenspace-blur.fs");
@@ -244,6 +246,8 @@ function initInputHandling() {
 function initInterfaceElements() {
     interface.getElementByName("light").callback = function() {
         light = !light;
+        shaders.deferredShader.bind();
+        gl.uniform1i(shaders.deferredShader.handles["uUseShadow"], light);
     };
 
     interface.getElementByName("depth").callback = function() {
@@ -365,10 +369,11 @@ function tick() {
 }
 
 function renderToTextures() {
-    framebuffers.shadowFramebuffer.renderWithFunc(function() {
-        gl.cullFace(gl.FRONT);
-        drawScene(shaders.shadowpassShader, cameras.shadowCamera);
-    });
+    if (light)
+        framebuffers.shadowFramebuffer.renderWithFunc(function() {
+            gl.cullFace(gl.FRONT);
+            drawScene(shaders.shadowpassShader, cameras.shadowCamera);
+        });
     framebuffers.framebuffer.renderWithFunc(function() {
         gl.cullFace(gl.BACK);
         drawScene(shaders.defaultShader, cameras.camera);

@@ -1,6 +1,6 @@
 {
   "elements":[
-    {"position": [0.9, 0.5, 1, 0.6], "type": "checkbox", "name": "light", "checked": false},
+    {"position": [0.9, 0.5, 1, 0.6], "type": "checkbox", "name": "light", "checked": true},
     {"position": [0.9, 0.6, 1, 0.7], "type": "checkbox", "name": "depth", "checked": false},
     {"position": [0.9, 0.7, 1, 0.8], "type": "checkbox", "name": "normal", "checked": false},
     {"position": [0.9, 0.9, 1, 1], "type": "radio", "namespace": "shader-type", "name": "default-shader", "checked": false},
