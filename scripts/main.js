@@ -50,7 +50,7 @@ function start() {
         framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
         framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
         framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
-        var p = new Perlin(0);
+        var p = new Perlin();
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;

@@ -1,29 +1,6 @@
-Array.prototype.shuffle = function(seed) {
-    var currentIndex = this.length, temporaryValue, randomIndex;
-
-    while (0 !== currentIndex) {
-        // Pick a remaining element...
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-
-        // And swap it with the current element.
-        temporaryValue = this[currentIndex];
-        this[currentIndex] = this[randomIndex];
-        this[randomIndex] = temporaryValue;
-    }
-
-    return this;
-};
-
-Array.prototype.extend = function(array) {
-    this.push.apply(this, array);
-}
-
 function Perlin(seed) {
-    var p = [];
-    for (var i = 0; i < 256; i++)
-        p.push(i);
-    p.shuffle();
+    var p = Array.range(256);
+    p.shuffle(seed);
     p.extend(p);
     
     function fade(t) {
@@ -31,9 +8,9 @@ function Perlin(seed) {
     }
 
     function grad(hash, x, y, z) {
-        var h = hash & 15
-        var u = h < 8 ? x : y
-        var v = h < 4 ? y : h == 12 || h == 14 ? x : z; // y if h < 4 else x if h == 12 or h == 14 else z
+        var h = hash & 15;
+        var u = h < 8 ? x : y;
+        var v = h < 4 ? y : h == 12 || h == 14 ? x : z;
         return (h & 1 ? u : -u) + (h & 2 ? v : -v);
     }
 
@@ -54,22 +31,27 @@ function Perlin(seed) {
         var v = fade(y);
         var w = fade(z);
 
-        var A = p[X] + Y
-        var AA = p[A] + Z
-        var AB = p[A + 1] + Z
-        var B = p[X + 1] + Y
-        var BA = p[B] + Z
-        var BB = p[B + 1] + Z
+        var A = p[X] + Y;
+        var AA = p[A] + Z;
+        var AB = p[A + 1] + Z;
+        var B = p[X + 1] + Y;
+        var BA = p[B] + Z;
+        var BB = p[B + 1] + Z;
 
-        var res = lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)),
-                       lerp(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))),
-               lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
-                    lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))))
-        console.log(res);
-        return (res + 1.0) / 2.0
+        var res = lerp(
+            w, lerp(
+                v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)),
+                lerp(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))
+            ),
+            lerp(
+                v, lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)),
+                lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))
+            )
+        );
+
+        return (res + 1.0) / 2.0;
     };
 }
-
 
 function getPerlinPlane(gl, perlin, w, h, seg) {
     return getPlane(w, h, seg, seg, function(x, y) {
