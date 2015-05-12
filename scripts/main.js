@@ -50,7 +50,7 @@ function start() {
         framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
         framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
         framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
-
+        var p = new Perlin(0);
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -172,6 +172,9 @@ function start() {
         scene.cube.initTexture("textures/yoba.png");
         scene.cube.position = [2, 2, -8.0];
         scene.cube.rotation = [-0.25, -0.25, -1];
+        scene.plane = getPerlinPlane(gl, p, 100, 100, 100);
+        scene.plane.initTexture("textures/yoba.png");
+        scene.plane.rotation[0] = Math.PI / 2;
 
         quads.square = getQuad(gl, -1, -1, 1, 1, 0);
         quads.depthSquare = getQuad(gl, -1, -1, -0.5, -0.5, -0.1);
@@ -338,6 +341,7 @@ function drawScene(shader, camera) {
     scene.sphere.draw(shader.handles);
     scene.mesh.draw(shader.handles);
     scene.cube.draw(shader.handles);
+    scene.plane.draw(shader.handles);
 }
 
 function animate(delta) {
