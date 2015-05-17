@@ -66,43 +66,43 @@ function Mesh(gl, vertices, indices, tex, normals) {
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(lineIndices), gl.STATIC_DRAW);
     }
 
-    var texture;
+    var texture = null;
     this.initTexture = function(src) {
-        texture = gl.createTexture();
-        texture.image = new Image();
-        texture.image.onload = function() {
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-            gl.generateMipmap(gl.TEXTURE_2D);
-            gl.bindTexture(gl.TEXTURE_2D, null);
-        };
-        texture.image.src = src;
+        texture = getTexture(src);
     };
 
     var normalTexture = null;
     this.initNormalTexture = function(src) {
-        normalTexture = gl.createTexture();
-        normalTexture.image = new Image();
-        normalTexture.image.onload = function() {
-            gl.bindTexture(gl.TEXTURE_2D, normalTexture);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, normalTexture.image);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-            gl.generateMipmap(gl.TEXTURE_2D);
-            gl.bindTexture(gl.TEXTURE_2D, null);
-        };
-        normalTexture.image.src = src;
+        normalTexture = getTexture(src);
+    };
+
+    var detailTexture = null;
+    this.initDetailTexture = function(src) {
+        detailTexture = getTexture(src);
+    };
+
+    var specularTexture = null;
+    this.initSpecularTexture = function(src) {
+        specularTexture = getTexture(src);
     };
     
     this.setTexture = function(id) {
         texture = id;
     };
 
-    this.draw = function(handles) {
+    this.setNormalTexture = function(id) {
+        normalTexture = id;
+    };
+
+    this.setDetailTexture = function(id) {
+        detailTexture = id;
+    };
+
+    this.setSpecularTexture = function(id) {
+        specularTexture = id;
+    };
+
+    this.drawInner = function(handles, wireframe) {
         mat4.identity(modelMatrix);
         mat4.translate(modelMatrix, this.position);
         mat4.rotateX(modelMatrix, this.rotation[0]);
@@ -117,7 +117,7 @@ function Mesh(gl, vertices, indices, tex, normals) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer.id);
                 gl.enableVertexAttribArray(handles["aVertexPosition"]);
                 gl.vertexAttribPointer(handles["aVertexPosition"], 3, gl.FLOAT, false, 0, 0);
-            } //else gl.disableVertexAttribArray(handles["aVertexPosition"]);
+            }
         }
 
         if (handles["aVertexNormal"] != -1) {
@@ -125,7 +125,7 @@ function Mesh(gl, vertices, indices, tex, normals) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer.id);
                 gl.enableVertexAttribArray(handles["aVertexNormal"]);
                 gl.vertexAttribPointer(handles["aVertexNormal"], 3, gl.FLOAT, false, 0, 0);
-            } //else gl.disableVertexAttribArray(handles["aVertexNormal"]);
+            }
         }
 
         if (handles["aVertexTexCoord"] != -1) {
@@ -133,77 +133,63 @@ function Mesh(gl, vertices, indices, tex, normals) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer.id);
                 gl.enableVertexAttribArray(handles["aVertexTexCoord"]);
                 gl.vertexAttribPointer(handles["aVertexTexCoord"], 2, gl.FLOAT, false, 0, 0);
-            } //else gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
+            }
         }
 
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.uniform1i(handles["uTexture"], 0);
+        if (texture) {
+            gl.uniform1i(handles["uUseTexture"], 1);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.uniform1i(handles["uTexture"], 0);
+        } else gl.uniform1i(handles["uUseTexture"], 0);
+
+        if (normalTexture) {
+            gl.uniform1i(handles["uUseNormal"], 1);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, normalTexture);
+            gl.uniform1i(handles["uNormalTexture"], 1);
+        } else gl.uniform1i(handles["uUseNormal"], 0);
+
+        if (detailTexture) {
+            gl.uniform1i(handles["uUseDetail"], 1);
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, detailTexture);
+            gl.uniform1i(handles["uDetailTexture"], 2);
+        } else gl.uniform1i(handles["uUseDetail"], 0);
+
+        if (specularTexture) {
+            gl.uniform1i(handles["uUseSpecular"], 1);
+            gl.activeTexture(gl.TEXTURE3);
+            gl.bindTexture(gl.TEXTURE_2D, specularTexture);
+            gl.uniform1i(handles["uSpecularTexture"], 3);
+        } else gl.uniform1i(handles["uUseSpecular"], 0);
 
         if (indexBuffer.count == 0)
-            gl.drawArrays(gl.TRIANGLES, 0, vertexBuffer.count);
+            gl.drawArrays(wireframe ? gl.LINES : gl.TRIANGLES, 0, vertexBuffer.count);
         else {
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer.id);
-            gl.drawElements(gl.TRIANGLES, indexBuffer.count, gl.UNSIGNED_SHORT, 0);
+            if (wireframe) {
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBuffer.id);
+                gl.drawElements(gl.LINES, lineIndexBuffer.count, gl.UNSIGNED_SHORT, 0);
+            } else {
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer.id);
+                gl.drawElements(gl.TRIANGLES, indexBuffer.count, gl.UNSIGNED_SHORT, 0);
+            }
         }
-        
         gl.disableVertexAttribArray(handles["aVertexPosition"]);
         gl.disableVertexAttribArray(handles["aVertexNormal"]);
         gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
     }
 
+    this.draw = function(handles) {
+        this.drawInner(handles);
+    }
+
     this.drawWireframe = function(handles) {
-        mat4.identity(modelMatrix);
-        mat4.translate(modelMatrix, this.position);
-        mat4.rotateX(modelMatrix, this.rotation[0]);
-        mat4.rotateY(modelMatrix, this.rotation[1]);
-        mat4.rotateZ(modelMatrix, this.rotation[2]);
-        mat4.scale(modelMatrix, this.scale);
-
-        gl.uniformMatrix4fv(handles["uMMatrix"], false, modelMatrix);
-        
-        if (handles["aVertexPosition"] != -1) {
-            if (vertexBuffer.count != 0) {
-                gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer.id);
-                gl.enableVertexAttribArray(handles["aVertexPosition"]);
-                gl.vertexAttribPointer(handles["aVertexPosition"], 3, gl.FLOAT, false, 0, 0);
-            } //else gl.disableVertexAttribArray(handles["aVertexPosition"]);
-        }
-
-        if (handles["aVertexNormal"] != -1) {
-            if (normalBuffer.count != 0) {
-                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer.id);
-                gl.enableVertexAttribArray(handles["aVertexNormal"]);
-                gl.vertexAttribPointer(handles["aVertexNormal"], 3, gl.FLOAT, false, 0, 0);
-            } //else gl.disableVertexAttribArray(handles["aVertexNormal"]);
-        }
-
-        if (handles["aVertexTexCoord"] != -1) {
-            if (texBuffer.count != 0) {
-                gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer.id);
-                gl.enableVertexAttribArray(handles["aVertexTexCoord"]);
-                gl.vertexAttribPointer(handles["aVertexTexCoord"], 2, gl.FLOAT, false, 0, 0);
-            } //else gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
-        }
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.uniform1i(handles["uTexture"], 0);
-
-        if (indexBuffer.count == 0)
-            gl.drawArrays(gl.LINES, 0, vertexBuffer.count);
-        else {
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBuffer.id);
-            gl.drawElements(gl.LINES, lineIndexBuffer.count, gl.UNSIGNED_SHORT, 0);
-        }
-        
-        gl.disableVertexAttribArray(handles["aVertexPosition"]);
-        gl.disableVertexAttribArray(handles["aVertexNormal"]);
-        gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
+        this.drawInner(handles, true);
     };
 }
 
-function getPlane(width, height, width_segments, height_segments, f) {
+function getPlane(width, height, width_segments, height_segments, tex, f) {
     function tryGetPerlin(x, y) {
         try {
             return f(x, y);
@@ -223,8 +209,8 @@ function getPlane(width, height, width_segments, height_segments, f) {
     var w = width_segments + 1;
     for (var y = 0; y < height_segments + 1; y++)
         for (var x = 0; x < width_segments + 1; x++) {
-            textures.push(x / width_segments);
-            textures.push(1 - y / height_segments);
+            textures.push(x / width_segments * tex);
+            textures.push(1 - y / height_segments * tex);
 
             var vX = x_offset + x * x_width;
             var vY = y_offset + y * y_height;
@@ -273,4 +259,20 @@ function getQuad(gl, x1, y1, x2, y2, z) {
     var tex = [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0];
     var indices = [0, 1, 2, 1, 3, 2];
     return new Mesh(gl, vertices, indices, tex);
+}
+
+function getTexture(src) {
+    var texture = gl.createTexture();
+    texture.image = new Image();
+    texture.image.onload = function() {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    };
+    texture.image.src = src;
+    return texture;
 }

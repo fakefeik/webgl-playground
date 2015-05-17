@@ -53,8 +53,8 @@ function Perlin(seed) {
     };
 }
 
-function getPerlinPlane(gl, perlin, w, h, seg) {
-    return getPlane(w, h, seg, seg, function(x, y) {
+function getPerlinPlane(gl, perlin, width, height, widthSegments, heightSegments, texCoords) {
+    return getPlane(width, height, widthSegments, heightSegments, texCoords, function(x, y) {
         return perlin.perlin(x / 10, y / 10, 0.8) * 10;
     });
 }

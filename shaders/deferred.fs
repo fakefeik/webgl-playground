@@ -3,6 +3,7 @@ precision mediump float;
 uniform sampler2D uAlbedoMap;
 uniform sampler2D uPositionMap;
 uniform sampler2D uNormalMap;
+uniform sampler2D uSpecularMap;
 uniform sampler2D uShadowMap;
 
 uniform vec3 uLightingDirection;

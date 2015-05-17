@@ -47,7 +47,7 @@ function start() {
         extensions.depthExtension = gl.getExtension("WEBGL_depth_texture");
         extensions.bufferExtension = gl.getExtension("WEBGL_draw_buffers");
 
-        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
+        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "specularTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
         framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
         framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
         var p = new Perlin();
@@ -103,7 +103,13 @@ function start() {
         shaders.defaultShader.saveAttribLocations(["aVertexPosition", "aVertexColor", "aVertexTexCoord", "aVertexNormal"]);
         shaders.defaultShader.saveUniformLocations([
             "uTexture", 
-            "uNormalTexture", 
+            "uNormalTexture",
+            "uDetailTexture",
+            "uSpecularTexture",
+            "uUseTexture",
+            "uUseNormal",
+            "uUseDetail",
+            "uUseSpecular",
             "uShadowmap",
             "uLightInvDir",
             "uMMatrix", 
@@ -123,7 +129,9 @@ function start() {
             "uAlbedoMap", 
             "uPositionMap", 
             "uNormalMap",
+            "uSpecularMap",
             "uShadowMap",
+            "uDepthMap",
             "uLightingDirection",
             "uDirectionalColor",
             "uAmbientColor",
@@ -162,29 +170,36 @@ function start() {
         shaders.screenspaceShader.saveAttribLocations(["aVertexPosition", "aVertexTexCoord"]);
         shaders.screenspaceShader.saveUniformLocations(["uTexture", "uDepthTexture"]);
         
+        var yobaTexture = getTexture("textures/yoba.png");
 
         scene.mesh = Load("models/sponza.jm");
-        scene.mesh.initTexture("textures/yoba.png");
+        scene.mesh.setTexture(yobaTexture);
         
         scene.sphere = Load("models/sphere.jm");
-        scene.sphere.initTexture("textures/yoba.png");
+        scene.sphere.setTexture(yobaTexture);
         scene.sphere.position[1] = 2;
 
         scene.cube = Load("models/cube.jm");
-        scene.cube.initTexture("textures/yoba.png");
+        scene.cube.setTexture(yobaTexture);
         scene.cube.position = [2, 2, -8.0];
         scene.cube.rotation = [-0.25, -0.25, -1];
-        scene.plane = getPerlinPlane(gl, p, 100, 100, 100);
-        scene.plane.initTexture("textures/yoba.png");
+        
+        scene.plane = getPerlinPlane(gl, p, 100, 100, 100, 100, 100);
+        scene.plane.initTexture("textures/wood1.diffuse.png");
+        scene.plane.initNormalTexture("textures/wood1.normal.png");
+        scene.plane.initDetailTexture("textures/wood1.detail.png");
+        scene.plane.initSpecularTexture("textures/wood1.specular.png");
         scene.plane.rotation[0] = Math.PI / 2;
 
         quads.square = getQuad(gl, -1, -1, 1, 1, 0);
-        quads.depthSquare = getQuad(gl, -1, -1, -0.5, -0.5, -0.1);
+        quads.albedoSquare = getQuad(gl, -1, -1, -0.5, -0.5, -0.1);
         quads.normalSquare = getQuad(gl, -0.5, -1, 0, -0.5, -0.1);
-        quads.albedoSquare = getQuad(gl, 0, -1, 0.5, -0.5, -0.1);
+        quads.specularSquare = getQuad(gl, 0, -1, 0.5, -0.5, -0.1);
+        quads.depthSquare = getQuad(gl, 0.5, -1, 1, -0.5, -0.1);
         quads.positionSquare = getQuad(gl, -1, -0.5, -0.5, 0, -0.1);
-        quads.shadowSquare = getQuad(gl, 0.5, -1, 1, -0.5, -0.1);
+        quads.shadowSquare = getQuad(gl, 0, -0.5, 0.5, 0, -0.1);
         quads.shadowmapSquare = getQuad(gl, 0.5, -0.5, 1, 0, -0.1);
+        
 
         gl.clearColor(0, 0, 0, 1);
         gl.clearDepth(1);
@@ -402,7 +417,13 @@ function renderDeferred() {
         gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getColorTexture("shadowTexture"));
         gl.uniform1i(shaders.deferredShader.handles["uShadowMap"], 7);
 
+        gl.activeTexture(gl.TEXTURE8);
+        gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getColorTexture("specularTexture"));
+        gl.uniform1i(shaders.deferredShader.handles["uSpecularMap"], 8);
 
+        gl.activeTexture(gl.TEXTURE9);
+        gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getDepthTexture());
+        gl.uniform1i(shaders.deferredShader.handles["uDepthMap"], 9);
 
         quads.square.draw(shaders.deferredShader.handles);        
     });
@@ -443,5 +464,8 @@ function renderToScreen() {
 
         quads.shadowmapSquare.setTexture(framebuffers.shadowFramebuffer.getDepthTexture());
         quads.shadowmapSquare.draw(shaders.screenspaceShader.handles);
+
+        quads.specularSquare.setTexture(framebuffers.framebuffer.getColorTexture("specularTexture"));
+        quads.specularSquare.draw(shaders.screenspaceShader.handles);
     }
 }

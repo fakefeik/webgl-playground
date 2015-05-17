@@ -1,4 +1,15 @@
 function Interface(config) {
+    var names = [
+        "checkbox_unchecked.png", "checkbox_checked.png",
+        "radiobutton_selected.png", "radiobutton_empty.png",
+        "slider_background.png", "slider_slider.png"
+    ];
+    
+    var textures = { };
+    for (var i = 0; i < names.length; i++) {
+        textures[names[i]] = getTexture("interface/" + names[i]);
+    }
+
     var elements = [];
     var drawables = [];
     var configuration;
@@ -7,16 +18,6 @@ function Interface(config) {
     var onMouseMoveDefaultCallback;
 
     getConfig(config);
-
-    function getT(t) {
-        if (t) return "interface/checkbox_unchecked.png";
-        return "interface/checkbox_checked.png";
-    }
-
-    function getR(r) {
-        if (r) return "interface/radiobutton_selected.png";
-        return "interface/radiobutton_empty.png";
-    }
 
     function getElementIndicesByNamespace(namespace) {
         var arr = [];
@@ -46,11 +47,17 @@ function Interface(config) {
             drawables.push(getQuad(gl, x1, y1, x2, y2, -0.1));
 
             if (elements[i]["type"] == "checkbox")
-                drawables[i].initTexture(getT(elements[i]["checked"]));
+                drawables[i].setTexture(elements[i]["checked"] ?
+                    textures["checkbox_checked.png"] : 
+                    textures["checkbox_unchecked.png"]
+                );
             if (elements[i]["type"] == "radio")
-                drawables[i].initTexture(getR(elements[i]["checked"]));
+                drawables[i].setTexture(elements[i]["checked"] ? 
+                    textures["radiobutton_selected.png"] : 
+                    textures["radiobutton_empty.png"]
+                );
             if (elements[i]["type"] == "slider")
-                drawables[i].initTexture("interface/slider_background.png")
+                drawables[i].setTexture(textures["slider_background.png"]);
         }
     }
 
@@ -72,13 +79,19 @@ function Interface(config) {
             if (isInBox([nx, ny], elements[i]["position"])) {
                 elements[i]["checked"] = !elements[i]["checked"];
                 if (elements[i]["type"] == "checkbox")
-                    drawables[i].initTexture(getT(elements[i]["checked"]));
+                    drawables[i].setTexture(elements[i]["checked"] ?
+                        textures["checkbox_checked.png"] : 
+                        textures["checkbox_unchecked.png"]
+                    );
                 if (elements[i]["type"] == "radio") {
                     elements[i]["checked"] = true;
                     var indexes = getElementIndicesByNamespace(elements[i]["namespace"]);
                     for (var j = 0; j < indexes.length; j++)
-                        drawables[indexes[j]].initTexture(getR(false));
-                    drawables[i].initTexture(getR(elements[i]["checked"]));
+                        drawables[indexes[j]].setTexture(textures["radiobutton_empty.png"]);
+                    drawables[i].setTexture(elements[i]["checked"] ? 
+                        textures["radiobutton_selected.png"] : 
+                        textures["radiobutton_empty.png"]
+                    );
                 }
                 if (elements[i]["type"] == "slider") {
                     wasHandled = true;

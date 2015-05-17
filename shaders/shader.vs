@@ -19,9 +19,9 @@ varying vec4 vShadowCoord;
 
 void main(void) {
     vPosition = (uVMatrix * uMMatrix * vec4(aVertexPosition, 1.0)).xyz;
-    vNormal = aVertexNormal;
+    vNormal = (uMMatrix * vec4(aVertexNormal, 0.0)).xyz;
     vTexCoord = aVertexTexCoord;
-    vNormal = normalize((uMMatrix * vec4(vNormal, 0.0)).xyz) / 2.0 + 0.5;
+    //vNormal = normalize((uMMatrix * vec4(vNormal, 0.0)).xyz) / 2.0 + 0.5;
     vNorm = (uVMatrix * uMMatrix * vec4(aVertexNormal, 0.0)).xyz;
     vLightDir = (uVMatrix * vec4(uLightInvDir, 0.0)).xyz;
     vShadowCoord = uBMatrix * uMMatrix * vec4(aVertexPosition, 1.0);
