@@ -172,14 +172,14 @@ function start() {
         
         var yobaTexture = getTexture("textures/yoba.png");
 
-        scene.mesh = Load("models/sponza.jm");
+        scene.mesh = load("models/sponza.jm");
         scene.mesh.setTexture(yobaTexture);
         
-        scene.sphere = Load("models/sphere.jm");
+        scene.sphere = load("models/sphere.jm");
         scene.sphere.setTexture(yobaTexture);
         scene.sphere.position[1] = 2;
 
-        scene.cube = Load("models/cube.jm");
+        scene.cube = load("models/cube.jm");
         scene.cube.setTexture(yobaTexture);
         scene.cube.position = [2, 2, -8.0];
         scene.cube.rotation = [-0.25, -0.25, -1];
@@ -359,7 +359,6 @@ function drawScene(shader, camera) {
     for (var key in scene) {
         drawWireframe ? scene[key].drawWireframe(shader.handles) : scene[key].draw(shader.handles);
     }
-
 }
 
 function animate(delta) {
@@ -380,7 +379,6 @@ function tick() {
     renderToTextures();
     renderDeferred();
     renderToScreen();
-
 }
 
 function renderToTextures() {

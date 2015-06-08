@@ -36,7 +36,7 @@ Array.range = function(start, end) {
         start = 0;
     }
 
-    arr = [];
+    var arr = [];
     for (var i = start; i < end; i++)
         arr.push(i);
     return arr;
@@ -60,4 +60,4 @@ Array.prototype.shuffle = function(seed) {
 
 Array.prototype.extend = function(array) {
     this.push.apply(this, array);
-}
+};

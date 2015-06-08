@@ -1,4 +1,4 @@
-function Load(filename) {
+function load(filename) {
     var request = new XMLHttpRequest();
     request.open('GET', filename, false);
     request.send();

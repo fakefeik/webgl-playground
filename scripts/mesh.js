@@ -46,12 +46,12 @@ function Mesh(gl, vertices, indices, tex, normals) {
     lineIndexBuffer.count = 0;
     if (indices) {
         var lineIndices = [];
-        var i = 0
+        var i = 0;
         while (i < indices.length) {
             var a = indices[i];
             var b = indices[i + 1];
             var c = indices[i + 2];
-            i += 3
+            i += 3;
             lineIndices.push(a);
             lineIndices.push(b);
             lineIndices.push(b);
@@ -178,11 +178,11 @@ function Mesh(gl, vertices, indices, tex, normals) {
         gl.disableVertexAttribArray(handles["aVertexPosition"]);
         gl.disableVertexAttribArray(handles["aVertexNormal"]);
         gl.disableVertexAttribArray(handles["aVertexTexCoord"]);
-    }
+    };
 
     this.draw = function(handles) {
         this.drawInner(handles);
-    }
+    };
 
     this.drawWireframe = function(handles) {
         this.drawInner(handles, true);
@@ -196,7 +196,7 @@ function getPlane(width, height, width_segments, height_segments, tex, f) {
         } catch (error) {
             return 0;
         }
-    };
+    }
 
     var vertices = [];
     var indices = [];
