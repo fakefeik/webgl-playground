@@ -39,6 +39,11 @@ var edgeKernel = [
     1, 1, 1
 ];
 
+var noiseTexture;
+var noiseSize = 4;
+var ssaoKernel = [];
+var kernelSize = 16;
+
 function start() {
     var canvas = document.getElementById("gl-canvas");
     gl = WebGLUtils.setupWebGL(canvas);
@@ -46,9 +51,11 @@ function start() {
     if (gl) {
         extensions.depthExtension = gl.getExtension("WEBGL_depth_texture");
         extensions.bufferExtension = gl.getExtension("WEBGL_draw_buffers");
+        extensions.floatExtension = gl.getExtension('OES_texture_float');
 
         framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "specularTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
         framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
+        framebuffers.ssaoFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["ssaoTexture"]);
         framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
         var p = new Perlin();
         function resize() {
@@ -60,11 +67,47 @@ function start() {
             windowWidth = canvas.width;
 
             framebuffers.framebuffer.resize(windowWidth * scale, windowHeight * scale);
+            framebuffers.ssaoFramebuffer.resize(windowWidth * scale, windowHeight * scale);
             framebuffers.deferredFramebuffer.resize(windowWidth * scale, windowHeight * scale);
         }
 
         resize();
         window.onresize = resize;
+
+        var rand = new Random();
+        for (var i = 0; i < kernelSize; i++) {
+            var v = vec3.createFrom(
+                rand.nextFloat() * 2 - 1,
+                rand.nextFloat() * 2 - 1,
+                rand.nextFloat()
+            );
+            vec3.normalize(v);
+
+            var sc = i / kernelSize;
+            var scaleSquare = sc * sc;
+            ssaoKernel.push(vec3.scale(v, 0.1 * (1 - scaleSquare) + 1.0 * scaleSquare));
+        }
+
+        noiseTexture = gl.createTexture();
+        var noiseDataSize = noiseSize * noiseSize;
+        var noiseData = [];
+        for (var i = 0; i < noiseDataSize; i++) {
+            var v = vec3.createFrom(
+                rand.nextFloat() * 2 - 1,
+                rand.nextFloat() * 2 - 1,
+                0
+            );
+            vec3.normalize(v);
+            noiseData.push(v[0]);
+            noiseData.push(v[1]);
+            noiseData.push(v[2]);
+        }
+
+        gl.bindTexture(gl.TEXTURE_2D, noiseTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, noiseSize, noiseSize, 0, gl.RGB, gl.FLOAT, new Float32Array(noiseData));
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
 
         cameras.camera = new Camera([0, 0, 1.5], [0, 0, -5], [0, 1, 0]);
         cameras.shadowCamera = new Camera([2, 20.900000000000027, -5.966682030726198], [1.536713802441966, 19.970923089981106, -6.079460187721971], [0, 1, 0]);
@@ -98,6 +141,18 @@ function start() {
         shaders.shadowpassShader.bind();
         gl.uniformMatrix4fv(shaders.shadowpassShader.handles["uPMatrix"], false, depthProjection);
         
+
+        shaders.ssaoShader = new Shader(gl, "ssao.vs", "ssao.fs");
+        shaders.ssaoShader.saveAttribLocations(["aVertexPosition", "aVertexTexCoord"]);
+        shaders.ssaoShader.saveUniformLocations(["uDepthMap", "uNormalMap", "uNoiseMap", "uPositionMap", "uKernelSize", "uKernelOffsets", "uPMatrix"]);
+        shaders.ssaoShader.bind();
+        gl.uniform1i(shaders.ssaoShader.handles["uKernelSize"], kernelSize);
+        gl.uniform3fv(shaders.ssaoShader.handles["uKernelOffsets"], ssaoKernel);
+        gl.uniformMatrix4fv(shaders.ssaoShader.handles["uPMatrix"], false, projectionMatrix);
+        gl.uniform1f(shaders.ssaoShader.handles["uNoiseSize"], 4);
+        gl.uniform1f(shaders.ssaoShader.handles["uWidth"], windowWidth * scale);
+        gl.uniform1f(shaders.ssaoShader.handles["uHeight"], windowHeight * scale);
+
 
         shaders.defaultShader = new Shader(gl, "shader.vs", "shader.fs");
         shaders.defaultShader.saveAttribLocations(["aVertexPosition", "aVertexColor", "aVertexTexCoord", "aVertexNormal"]);
@@ -199,6 +254,7 @@ function start() {
         quads.positionSquare = getQuad(gl, -1, -0.5, -0.5, 0, -0.1);
         quads.shadowSquare = getQuad(gl, 0, -0.5, 0.5, 0, -0.1);
         quads.shadowmapSquare = getQuad(gl, 0.5, -0.5, 1, 0, -0.1);
+        quads.ssaoSquare = getQuad(gl, -0.5, -0.5, 0, 0, -0.2);
         
 
         gl.clearColor(0, 0, 0, 1);
@@ -313,6 +369,10 @@ function initInterfaceElements() {
         if (d) {
             scale = d * 2;
             framebuffers.framebuffer.resize(windowWidth * scale, windowHeight * scale);
+            framebuffers.ssaoFramebuffer.resize(windowWidth * scale, windowHeight * scale);
+            shaders.ssaoShader.bind();
+            gl.uniform1f(shaders.ssaoShader.handles["uWidth"], windowWidth * scale);
+            gl.uniform1f(shaders.ssaoShader.handles["uHeight"], windowHeight * scale);
             framebuffers.deferredFramebuffer.resize(windowWidth * scale, windowHeight * scale);
         }
     };
@@ -391,6 +451,29 @@ function renderToTextures() {
         gl.cullFace(gl.BACK);
         drawScene(shaders.defaultShader, cameras.camera);
     });
+    framebuffers.ssaoFramebuffer.renderWithFunc(function() {
+        gl.viewport(0, 0, windowWidth * scale, windowHeight * scale);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        shaders.ssaoShader.bind();
+
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getColorTexture("normalTexture"));
+        gl.uniform1i(shaders.ssaoShader.handles["uNormalMap"], 6);
+
+        gl.activeTexture(gl.TEXTURE7);
+        gl.bindTexture(gl.TEXTURE_2D, noiseTexture);
+        gl.uniform1i(shaders.ssaoShader.handles["uNoiseMap"], 7);
+
+        gl.activeTexture(gl.TEXTURE8);
+        gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getColorTexture("positionTexture"));
+        gl.uniform1i(shaders.ssaoShader.handles["uPositionMap"], 8);
+
+        gl.activeTexture(gl.TEXTURE9);
+        gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getDepthTexture());
+        gl.uniform1i(shaders.ssaoShader.handles["uDepthMap"], 9);
+
+        quads.square.draw(shaders.ssaoShader.handles);  
+    });
 }
 
 function renderDeferred() {
@@ -465,5 +548,8 @@ function renderToScreen() {
 
         quads.specularSquare.setTexture(framebuffers.framebuffer.getColorTexture("specularTexture"));
         quads.specularSquare.draw(shaders.screenspaceShader.handles);
+
+        quads.ssaoSquare.setTexture(framebuffers.ssaoFramebuffer.getColorTexture("ssaoTexture"));
+        quads.ssaoSquare.draw(shaders.screenspaceShader.handles);
     }
 }
