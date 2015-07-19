@@ -1,56 +1,46 @@
 function Camera(position, target, up) {
-    this.position = position;
-    this.target = target;
-    this.up = up;
+    this.position = vec3.create(position);
+    this.target = vec3.create(target);
+    this.up = vec3.create(up);
 
-    var irl = Math.PI; // !
-    var iud = 0;
+    var horizontalAngle = Math.PI;
+    var verticalAngle = 0;
 
     /**
      * Moves camera in relative direction
      *
-     * @param {Number} fb Forward/backward direction (positive for forward, negative for backward movement)
-     * @param {Number} rl Right/left direction
-     * @param {Number} ud Up/down direction
+     * @param {Number} forward Forward/backward direction (positive for forward, negative for backward movement)
+     * @param {Number} right Right/left direction
+     * @param {Number} up Up/down direction
      */
-    this.move = function(fb, rl, ud) {
-        var v = [
-            this.target[0] - this.position[0],
-            this.target[2] - this.position[2]
-        ];
-        //vec2.normalize(v);
-        this.position[0] += v[0] * fb;
-        this.position[2] += v[1] * fb;
-        this.target[0] += v[0] * fb;
-        this.target[2] += v[1] * fb;
+    this.move = function(forward, right, up) {
+        var direction = vec3.subtract(this.target, this.position, vec3.create());
+        var rightVec = vec3.cross(direction, this.up, vec3.create());
 
-        this.position[0] -= v[1] * rl;
-        this.position[2] += v[0] * rl;
-        this.target[0] -= v[1] * rl;
-        this.target[2] += v[0] * rl;
+        vec3.add(this.position, vec3.scale(direction, forward, vec3.create()));
+        vec3.add(this.position, vec3.scale(rightVec, right, vec3.create()));
 
-        this.position[1] += ud;
-        this.target[1] += ud;
+        vec3.add(this.position, direction, this.target);
     };
 
     /**
      * Rotates camera relative to current rotation
      *
-     * @param {Number} ud Look up/down
-     * @param {Number} rl Look right/left
+     * @param {Number} rotationY Look up/down
+     * @param {Number} rotationX Look right/left
      */
-    this.rotate = function(ud, rl) {
-        //if (iud + ud > -Math.PI / 2 && iud + ud < Math.PI / 2)
-            iud += ud;
-        irl += rl;
-        var mat = mat4.create();
-        mat4.identity(mat);
-        mat4.rotateX(mat, iud);
-        mat4.rotateY(mat, irl);
-        var vec = vec4.createFrom(0, 0, 1, 1);
-        var vec2 = mat4.multiplyVec4(mat, vec);
-        target[0] = vec2[0] + position[0];
-        target[1] = vec2[1] + position[1];
-        target[2] = vec2[2] + position[2];
+    this.rotate = function(rotationY, rotationX) {
+        horizontalAngle += rotationX;
+        verticalAngle += rotationY;
+
+        var sinH = Math.sin(horizontalAngle);
+        var cosH = Math.cos(horizontalAngle);
+        var sinV = Math.sin(verticalAngle);
+        var cosV = Math.cos(verticalAngle);
+        var direction = vec3.createFrom(cosV * sinH, sinV, cosV * cosH);
+        var right = vec3.createFrom(Math.sin(horizontalAngle - Math.PI / 2), 0, Math.cos(horizontalAngle - Math.PI / 2));
+
+        vec3.cross(right, direction, this.up);
+        vec3.add(this.position, direction, this.target);
     };
 }
