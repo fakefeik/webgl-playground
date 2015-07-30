@@ -63,6 +63,7 @@ function start() {
             canvas.height = window.innerHeight;
             gl.viewport(0, 0, canvas.width, canvas.height);
             projectionMatrix = mat4.perspective(45, canvas.width / canvas.height, 0.1, 100);
+
             windowHeight = canvas.height;
             windowWidth = canvas.width;
 
@@ -85,7 +86,9 @@ function start() {
 
             var sc = i / kernelSize;
             var scaleSquare = sc * sc;
-            ssaoKernel.push(vec3.scale(v, 0.1 * (1 - scaleSquare) + 1.0 * scaleSquare));
+            vec3.scale(v, 0.1 * (1 - scaleSquare) + scaleSquare);
+
+            ssaoKernel.extend([v[0], v[1], v[2]]);
         }
 
         noiseTexture = gl.createTexture();
@@ -144,14 +147,32 @@ function start() {
 
         shaders.ssaoShader = new Shader(gl, "ssao.vs", "ssao.fs");
         shaders.ssaoShader.saveAttribLocations(["aVertexPosition", "aVertexTexCoord"]);
-        shaders.ssaoShader.saveUniformLocations(["uDepthMap", "uNormalMap", "uNoiseMap", "uPositionMap", "uKernelSize", "uKernelOffsets", "uPMatrix"]);
+        shaders.ssaoShader.saveUniformLocations([
+            "uDepthMap",
+            "uNormalMap",
+            "uNoiseMap",
+            "uPositionMap",
+            "uKernelSize",
+            "uKernelOffsets",
+            "uPMatrix",
+            "uIPMatrix",
+            "uWidth",
+            "uHeight",
+            "uKernelRadius",
+            "uSsaoPower"
+        ]);
         shaders.ssaoShader.bind();
         gl.uniform1i(shaders.ssaoShader.handles["uKernelSize"], kernelSize);
         gl.uniform3fv(shaders.ssaoShader.handles["uKernelOffsets"], ssaoKernel);
+        var invProjectionMatrix = mat4.create();
+        mat4.inverse(projectionMatrix, invProjectionMatrix);
         gl.uniformMatrix4fv(shaders.ssaoShader.handles["uPMatrix"], false, projectionMatrix);
+        gl.uniformMatrix4fv(shaders.ssaoShader.handles["uIPMatrix"], false, invProjectionMatrix);
         gl.uniform1f(shaders.ssaoShader.handles["uNoiseSize"], 4);
         gl.uniform1f(shaders.ssaoShader.handles["uWidth"], windowWidth * scale);
         gl.uniform1f(shaders.ssaoShader.handles["uHeight"], windowHeight * scale);
+        gl.uniform1f(shaders.ssaoShader.handles["uKernelRadius"], 1);
+        gl.uniform1f(shaders.ssaoShader.handles["uSsaoPower"], 1);
 
 
         shaders.defaultShader = new Shader(gl, "shader.vs", "shader.fs");
@@ -187,6 +208,7 @@ function start() {
             "uSpecularMap",
             "uShadowMap",
             "uDepthMap",
+            "uSsaoMap",
             "uLightingDirection",
             "uDirectionalColor",
             "uAmbientColor",
@@ -505,6 +527,10 @@ function renderDeferred() {
         gl.activeTexture(gl.TEXTURE9);
         gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getDepthTexture());
         gl.uniform1i(shaders.deferredShader.handles["uDepthMap"], 9);
+
+        gl.activeTexture(gl.TEXTURE10);
+        gl.bindTexture(gl.TEXTURE_2D, framebuffers.ssaoFramebuffer.getColorTexture("ssaoTexture"));
+        gl.uniform1i(shaders.deferredShader.handles["uSsaoMap"], 10);
 
         quads.square.draw(shaders.deferredShader.handles);        
     });
