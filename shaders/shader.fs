@@ -13,12 +13,13 @@ uniform bool uUseNormal;
 uniform bool uUseDetail;
 uniform bool uUseSpecular;
 
-varying vec3 vPosition;
 varying vec3 vNormal;
 varying vec3 vNorm;
 varying vec3 vLightDir;
 varying vec2 vTexCoord;
 varying vec4 vShadowCoord;
+varying vec4 vPosition;
+varying vec4 vPrevPosition;
 
 void main(void) {
     if (uUseTexture) {
@@ -43,7 +44,7 @@ void main(void) {
         gl_FragData[2] = vec4(0.0);
     }
 
-    gl_FragData[3] = vec4(vPosition, 1.0);
+    gl_FragData[3] = vPosition;
     
     //float bias = 0.005;
     vec3 n2 = normalize(vNorm);
@@ -56,4 +57,8 @@ void main(void) {
     } else {
         gl_FragData[4] = vec4(0.1, 0.1, 0.1, 1.0);
     }
+
+    vec2 a = (vPosition.xy / vPosition.w) * 0.5 + 0.5;
+    vec2 b = (vPrevPosition.xy / vPrevPosition.w) * 0.5 + 0.5;
+    gl_FragData[5] = vec4(a - b, 0.0, 1.0);
 }

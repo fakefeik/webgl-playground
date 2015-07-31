@@ -6,6 +6,7 @@ var scene = { };
 var quads = { };
 var projectionMatrix;
 var viewMatrix;
+var previousViewMatrix;
 var cameras = { };
 var interface;
 var pressedKeys = { };
@@ -53,7 +54,7 @@ function start() {
         extensions.bufferExtension = gl.getExtension("WEBGL_draw_buffers");
         extensions.floatExtension = gl.getExtension('OES_texture_float');
 
-        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "specularTexture", "positionTexture", "shadowTexture"], false, extensions.bufferExtension);
+        framebuffers.framebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["albedoTexture", "normalTexture", "specularTexture", "positionTexture", "shadowTexture", "velocityTexture"], false, extensions.bufferExtension);
         framebuffers.shadowFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, []);
         framebuffers.ssaoFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["ssaoTexture"]);
         framebuffers.deferredFramebuffer = new Framebuffer(gl, defaultWindowSize, defaultWindowSize, ["renderedTexture"]);
@@ -191,7 +192,9 @@ function start() {
             "uMMatrix", 
             "uPMatrix", 
             "uVMatrix", 
-            "uBMatrix"
+            "uBMatrix",
+            "uPMMatrix",
+            "uPVMatrix"
         ]);
         shaders.defaultShader.bind();
         gl.uniformMatrix4fv(shaders.defaultShader.handles["uPMatrix"], false, projectionMatrix);
@@ -241,6 +244,13 @@ function start() {
             "uSliderValue"
         ]);
         shaders.depthBlurShader.bind();
+
+        shaders.motionBlurShader = new Shader(gl, "screenspace.vs", "motion-blur.fs");
+        shaders.motionBlurShader.saveAttribLocations(["aVertexPosition", "aVertexTexCoord"]);
+        shaders.motionBlurShader.saveUniformLocations([
+            "uTexture",
+            "uVelocityMap"
+        ]);
 
 
         shaders.screenspaceShader = new Shader(gl, "screenspace.vs", "screenspace.fs");
@@ -359,6 +369,10 @@ function initInterfaceElements() {
         shaders.currentShader = shaders.depthBlurShader;
     };
 
+    interface.getElementByName("motion-blur").callback = function() {
+        shaders.currentShader = shaders.motionBlurShader;
+    };
+
     interface.getElementByName("default-shader").callback = function() {
         shaders.currentShader = shaders.screenspaceShader;
     };
@@ -398,6 +412,13 @@ function initInterfaceElements() {
             framebuffers.deferredFramebuffer.resize(windowWidth * scale, windowHeight * scale);
         }
     };
+
+    interface.getElementByName("ssao-radius-slider").callback = function(d) {
+        if (d) {
+            shaders.ssaoShader.bind();
+            gl.uniform1f(shaders.ssaoShader.handles["uKernelRadius"], d * 2);
+        }
+    };
 }
 
 function handleKeys() {
@@ -426,8 +447,10 @@ function handleKeys() {
 
 function drawScene(shader, camera) {
     shader.bind();
+    previousViewMatrix = viewMatrix == undefined ? mat4.create() : mat4.create(viewMatrix);
     viewMatrix = mat4.lookAt(camera.position, camera.target, camera.up);
     gl.uniformMatrix4fv(shader.handles["uVMatrix"], false, viewMatrix);
+    gl.uniformMatrix4fv(shader.handles["uPVMatrix"], false, viewMatrix);
 
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LESS);
@@ -444,7 +467,7 @@ function drawScene(shader, camera) {
 }
 
 function animate(delta) {
-    scene.sphere.rotation[1] += 0.05 * delta;
+    scene.sphere.rotation[1] += 0.5 * delta;
     scene.sphere.rotation[2] += 0.1 * delta;
 
     scene.cube.rotation[1] += 0.07 * delta;
@@ -545,6 +568,10 @@ function renderToScreen() {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getDepthTexture());
     gl.uniform1i(shaders.currentShader.handles["uDepthTexture"], 1);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, framebuffers.framebuffer.getColorTexture("velocityTexture"));
+    gl.uniform1i(shaders.currentShader.handles["uVelocityMap"], 2);
     
     quads.square.setTexture(framebuffers.deferredFramebuffer.getColorTexture("renderedTexture"));
     quads.square.draw(shaders.currentShader.handles);
@@ -563,7 +590,7 @@ function renderToScreen() {
         quads.albedoSquare.setTexture(framebuffers.framebuffer.getColorTexture("albedoTexture"));
         quads.albedoSquare.draw(shaders.screenspaceShader.handles);
 
-        quads.positionSquare.setTexture(framebuffers.framebuffer.getColorTexture("positionTexture"));
+        quads.positionSquare.setTexture(framebuffers.framebuffer.getColorTexture("velocityTexture"));
         quads.positionSquare.draw(shaders.screenspaceShader.handles);
 
         quads.shadowSquare.setTexture(framebuffers.framebuffer.getColorTexture("shadowTexture"));

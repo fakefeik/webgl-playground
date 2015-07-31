@@ -6,10 +6,12 @@
     {"position": [0.9, 0.9, 1, 1], "type": "radio", "namespace": "shader-type", "name": "default-shader", "checked": false},
     {"position": [0.8, 0.9, 0.9, 1], "type": "radio", "namespace": "shader-type", "name": "depth-blur", "checked": true},
     {"position": [0.7, 0.9, 0.8, 1], "type": "radio", "namespace": "shader-type", "name": "blur", "checked": false},
+    {"position": [0.6, 0.9, 0.7, 1], "type": "radio", "namespace": "shader-type", "name": "motion-blur", "checked": false},
     {"position": [0.9, 0.8, 1, 0.9], "type": "radio", "namespace": "kernel", "name": "sharpen-kernel", "checked": false},
     {"position": [0.8, 0.8, 0.9, 0.9], "type": "radio", "namespace": "kernel", "name": "blur-kernel", "checked": true},
     {"position": [0.7, 0.8, 0.8, 0.9], "type": "radio", "namespace": "kernel", "name": "edge-kernel", "checked": false},
     {"position": [0.7, 0.4, 1, 0.5], "type": "slider", "name": "test-slider", "slider-position": 0.5},
-    {"position": [0.7, 0.3, 1, 0.4], "type": "slider", "name": "resolution-slider", "slider-position": 0.5}
+    {"position": [0.7, 0.3, 1, 0.4], "type": "slider", "name": "resolution-slider", "slider-position": 0.5},
+    {"position": [0.7, 0.2, 1, 0.3], "type": "slider", "name": "ssao-radius-slider", "slider-position": 0.5}
   ]
 }

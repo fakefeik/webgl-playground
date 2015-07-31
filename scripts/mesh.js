@@ -1,6 +1,8 @@
 function Mesh(gl, vertices, indices, tex, normals) {
     var modelMatrix = mat4.create();
+    var prevModelMatrix = mat4.create();
     mat4.identity(modelMatrix);
+    mat4.identity(prevModelMatrix);
 
     this.position = [-1.5, 0.0, -7.0];
     this.rotation = [0.0, 0.0, 0.0];
@@ -103,6 +105,9 @@ function Mesh(gl, vertices, indices, tex, normals) {
     };
 
     this.drawInner = function(handles, wireframe) {
+        gl.uniformMatrix4fv(handles["uMMatrix"], false, modelMatrix);
+        gl.uniformMatrix4fv(handles["uPMMatrix"], false, prevModelMatrix);
+        prevModelMatrix = mat4.create(modelMatrix);
         mat4.identity(modelMatrix);
         mat4.translate(modelMatrix, this.position);
         mat4.rotateX(modelMatrix, this.rotation[0]);
@@ -110,7 +115,7 @@ function Mesh(gl, vertices, indices, tex, normals) {
         mat4.rotateZ(modelMatrix, this.rotation[2]);
         mat4.scale(modelMatrix, this.scale);
 
-        gl.uniformMatrix4fv(handles["uMMatrix"], false, modelMatrix);
+
         
         if (handles["aVertexPosition"] != -1) {
             if (vertexBuffer.count != 0) {
