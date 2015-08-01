@@ -445,13 +445,12 @@ function handleKeys() {
         cameras.camera.rotate(0, -0.1);
 }
 
-function drawScene(shader, camera) {
+function drawScene(shader, camera, usePrevious) {
     shader.bind();
-    previousViewMatrix = viewMatrix == undefined ? mat4.create() : mat4.create(viewMatrix);
+    gl.uniformMatrix4fv(shader.handles["uPVMatrix"], false, previousViewMatrix == undefined ? mat4.create() : previousViewMatrix);
     viewMatrix = mat4.lookAt(camera.position, camera.target, camera.up);
     gl.uniformMatrix4fv(shader.handles["uVMatrix"], false, viewMatrix);
-    gl.uniformMatrix4fv(shader.handles["uPVMatrix"], false, viewMatrix);
-
+    
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LESS);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -461,13 +460,16 @@ function drawScene(shader, camera) {
     gl.activeTexture(gl.TEXTURE3);
     gl.bindTexture(gl.TEXTURE_2D, framebuffers.shadowFramebuffer.getDepthTexture());
     gl.uniform1i(shader.handles["uShadowmap"], 3);
-    for (var key in scene) {
+    
+    for (var key in scene)
         drawWireframe ? scene[key].drawWireframe(shader.handles) : scene[key].draw(shader.handles);
-    }
+    
+    if (usePrevious)
+        previousViewMatrix = mat4.create(viewMatrix);
 }
 
 function animate(delta) {
-    scene.sphere.rotation[1] += 0.5 * delta;
+    scene.sphere.rotation[1] += 0.05 * delta;
     scene.sphere.rotation[2] += 0.1 * delta;
 
     scene.cube.rotation[1] += 0.07 * delta;
@@ -490,11 +492,11 @@ function renderToTextures() {
     if (light)
         framebuffers.shadowFramebuffer.renderWithFunc(function() {
             gl.cullFace(gl.FRONT);
-            drawScene(shaders.shadowpassShader, cameras.shadowCamera);
+            drawScene(shaders.shadowpassShader, cameras.shadowCamera, false);
         });
     framebuffers.framebuffer.renderWithFunc(function() {
         gl.cullFace(gl.BACK);
-        drawScene(shaders.defaultShader, cameras.camera);
+        drawScene(shaders.defaultShader, cameras.camera, true);
     });
     framebuffers.ssaoFramebuffer.renderWithFunc(function() {
         gl.viewport(0, 0, windowWidth * scale, windowHeight * scale);
